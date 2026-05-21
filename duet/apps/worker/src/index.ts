@@ -1,5 +1,5 @@
 import { Worker } from "bullmq";
-import { redis } from "../../web/lib/redis";
+import { redis, getBullMQConnection } from "../../web/lib/redis";
 import { db } from "../../web/lib/db";
 import { runAgent } from "./agent-runner";
 import type { AgentJobData } from "../../web/lib/queue";
@@ -66,7 +66,7 @@ const worker = new Worker<AgentJobData>(
     });
   },
   {
-    connection: redis,
+    connection: getBullMQConnection(),
     concurrency: 5, // max 5 concurrent Claude sessions per worker process
   }
 );

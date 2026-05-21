@@ -1,5 +1,5 @@
 import { Queue } from "bullmq";
-import { getRedisClient } from "./redis";
+import { getBullMQConnection } from "./redis";
 import crypto from "crypto";
 
 export type AgentJobData = {
@@ -15,7 +15,7 @@ let _queue: Queue | undefined;
 function getQueue(): Queue {
   if (!_queue) {
     _queue = new Queue("agent-tasks", {
-      connection: getRedisClient(),
+      connection: getBullMQConnection(),
       defaultJobOptions: {
         attempts: 3,
         backoff: { type: "exponential", delay: 2000 },
@@ -29,8 +29,9 @@ function getQueue(): Queue {
 
 export const agentQueue = new Proxy({} as Queue, {
   get(_target, prop) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (getQueue() as any)[prop];
+    const q = getQueue();
+    const value = (q as any)[prop];
+    return typeof value === "function" ? value.bind(q) : value;
   },
 });
 
