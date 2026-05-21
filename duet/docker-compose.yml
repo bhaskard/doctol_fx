@@ -1,0 +1,83 @@
+version: "3.9"
+
+networks:
+  internal:
+    internal: true
+  web:
+    driver: bridge
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
+    ports:
+      - "3000:3000"
+    networks: [internal, web]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-devpass}@postgres:5432/duet
+      REDIS_URL: redis://:${REDIS_PASSWORD:-devredis}@redis:6379
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-secret-change-in-prod}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      COMPOSIO_API_KEY: ${COMPOSIO_API_KEY:-}
+      SLACK_SIGNING_SECRET: ${SLACK_SIGNING_SECRET:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-dev-tg-secret}
+      JOB_HMAC_SECRET: ${JOB_HMAC_SECRET:-dev-hmac-secret-change-in-prod}
+      HOSTED_APPS_DOMAIN: ${HOSTED_APPS_DOMAIN:-localhost:3000}
+    volumes:
+      - ./apps/web:/app/apps/web
+      - /app/apps/web/node_modules
+      - /app/apps/web/.next
+    depends_on: [postgres, redis]
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile.dev
+    networks: [internal]
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-devpass}@postgres:5432/duet
+      REDIS_URL: redis://:${REDIS_PASSWORD:-devredis}@redis:6379
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      COMPOSIO_API_KEY: ${COMPOSIO_API_KEY:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      JOB_HMAC_SECRET: ${JOB_HMAC_SECRET:-dev-hmac-secret-change-in-prod}
+      HOSTED_APPS_DIR: /var/hosted-apps
+      HOSTED_APPS_DOMAIN: ${HOSTED_APPS_DOMAIN:-localhost:3000}
+    volumes:
+      - ./apps/worker:/app/apps/worker
+      - hosted_apps:/var/hosted-apps
+    depends_on: [postgres, redis]
+
+  postgres:
+    image: postgres:16
+    networks: [internal]
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-devpass}
+      POSTGRES_DB: duet
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c password_encryption=scram-sha-256
+      -c log_connections=on
+
+  redis:
+    image: redis:7-alpine
+    networks: [internal]
+    command: redis-server --requirepass ${REDIS_PASSWORD:-devredis} --appendonly yes
+    volumes:
+      - redis_data:/data
+
+volumes:
+  pg_data:
+  redis_data:
+  hosted_apps:
