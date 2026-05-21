@@ -1,0 +1,14 @@
+{
+  "name": "duet-clone",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "build": "pnpm --filter web build && pnpm --filter worker build",
+    "db:push": "pnpm --filter web prisma db push",
+    "db:migrate": "pnpm --filter web prisma migrate deploy",
+    "db:generate": "pnpm --filter web prisma generate"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
