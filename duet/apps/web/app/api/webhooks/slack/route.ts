@@ -32,12 +32,6 @@ function verifySlackSignature(
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
-  const timestamp = req.headers.get("x-slack-request-timestamp") ?? "";
-  const signature = req.headers.get("x-slack-signature") ?? "";
-
-  if (!verifySlackSignature(rawBody, timestamp, signature)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
   let payload: Record<string, unknown>;
   try {
@@ -46,9 +40,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Slack URL verification challenge
+  // Respond to Slack's URL verification challenge immediately — no auth needed
   if (payload.type === "url_verification") {
     return NextResponse.json({ challenge: payload.challenge });
+  }
+
+  // All other events require valid HMAC signature
+  const timestamp = req.headers.get("x-slack-request-timestamp") ?? "";
+  const signature = req.headers.get("x-slack-signature") ?? "";
+
+  if (!verifySlackSignature(rawBody, timestamp, signature)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const event = payload.event as Record<string, string> | undefined;
